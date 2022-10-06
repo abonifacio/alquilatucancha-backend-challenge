@@ -1,7 +1,7 @@
 import { CACHE_MANAGER, Inject, Injectable } from '@nestjs/common';
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { Cache } from 'cache-manager';
-import { Get_Club_With_Availability } from 'src/infrastructure/constants';
+import { Get_Club_With_Availability } from '../../infrastructure/constants';
 import {
   ClubWithAvailability,
   GetAvailabilityQuery,
@@ -22,9 +22,9 @@ export class GetAvailabilityHandler
     @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) {}
 
-  async execute(query: GetAvailabilityQuery): Promise<ClubWithAvailability[]| undefined> {
+  async execute(query: GetAvailabilityQuery): Promise<ClubWithAvailability[]> {
     const cacheData:ClubWithAvailability[]|undefined= await this.cacheManager.get(Get_Club_With_Availability)
-    if(cacheData){
+    if(cacheData?.length){
       return cacheData
     }
     const clubs_with_availability: ClubWithAvailability[] = [];
