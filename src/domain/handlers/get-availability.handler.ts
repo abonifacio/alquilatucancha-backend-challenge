@@ -29,6 +29,7 @@ export class GetAvailabilityHandler
     }
     const clubs_with_availability: ClubWithAvailability[] = [];
     const clubs = await this.alquilaTuCanchaClient.getClubs(query.placeId);
+    // en este espacio se hacen varios llamados a la api y cuestan mucho tanto para el servicio como la db
     for (const club of clubs) {
       const courts = await this.alquilaTuCanchaClient.getCourts(club.id);
       const courts_with_availability: ClubWithAvailability['courts'] = [];
