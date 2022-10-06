@@ -1,6 +1,7 @@
-import { Inject } from '@nestjs/common';
+import { CACHE_MANAGER, Inject, Injectable } from '@nestjs/common';
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
-
+import { Cache } from 'cache-manager';
+import { Get_Club_With_Availability } from 'src/infrastructure/constants';
 import {
   ClubWithAvailability,
   GetAvailabilityQuery,
@@ -10,6 +11,7 @@ import {
   AlquilaTuCanchaClient,
 } from '../ports/aquila-tu-cancha.client';
 
+@Injectable()
 @QueryHandler(GetAvailabilityQuery)
 export class GetAvailabilityHandler
   implements IQueryHandler<GetAvailabilityQuery>
@@ -17,9 +19,14 @@ export class GetAvailabilityHandler
   constructor(
     @Inject(ALQUILA_TU_CANCHA_CLIENT)
     private alquilaTuCanchaClient: AlquilaTuCanchaClient,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) {}
 
-  async execute(query: GetAvailabilityQuery): Promise<ClubWithAvailability[]> {
+  async execute(query: GetAvailabilityQuery): Promise<ClubWithAvailability[]| undefined> {
+    const cacheData:ClubWithAvailability[]|undefined= await this.cacheManager.get(Get_Club_With_Availability)
+    if(cacheData){
+      return cacheData
+    }
     const clubs_with_availability: ClubWithAvailability[] = [];
     const clubs = await this.alquilaTuCanchaClient.getClubs(query.placeId);
     for (const club of clubs) {
@@ -41,6 +48,8 @@ export class GetAvailabilityHandler
         courts: courts_with_availability,
       });
     }
+    await this.cacheManager.set(Get_Club_With_Availability,clubs_with_availability,{ttl:100})
+    
     return clubs_with_availability;
   }
 }
