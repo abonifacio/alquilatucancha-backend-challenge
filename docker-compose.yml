@@ -1,5 +1,12 @@
 version: '3.7'
 services:
+  storage:
+    image: redis
+    container_name: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - redis:/data  
   api:
     image: atc-challenge:dev
     build:
@@ -13,6 +20,8 @@ services:
       - 3000:3000
     environment:
       ATC_BASE_URL: http://mock:4000
+      REDIS_HOST: storage
+      REDIS_PORT: 6379
   mock:
     image: atc-challenge:dev
     command: node /usr/src/app/mock/server.js
@@ -24,3 +33,6 @@ services:
       EVENT_INTERVAL_SECONDS: 10
       REQUESTS_PER_MINUTE: 60
       EVENT_PUBLISHER_URL: http://api:3000/events
+volumes:
+  redis:
+    driver: local

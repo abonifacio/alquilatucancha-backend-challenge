@@ -18,8 +18,7 @@ const GetAvailabilitySchema = z.object({
     .transform((date) => moment(date).toDate()),
 });
 
-class GetAvailabilityDTO extends createZodDto(GetAvailabilitySchema) {}
-
+ abstract class GetAvailabilityDTO extends createZodDto(GetAvailabilitySchema) {}
 @Controller('search')
 export class SearchController {
   constructor(private queryBus: QueryBus) {}
