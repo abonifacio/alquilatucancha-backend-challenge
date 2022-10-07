@@ -28,14 +28,14 @@ describe('AppController (e2e)', () => {
   it('/search?placeId=ChIJW9fXNZNTtpURV6VYAumGQOw&date=2022-08-19 (GET)', async () => {
     const date = '2022-08-19';
     const placeId = 'ChIJW9fXNZNTtpURV6VYAumGQOw';
-    const response = await request(app.getHttpServer())
-      .get(`/search?placeId=${placeId}&date=${date}`)
-      .expect(200);
+    const response = await http.axiosRef.get(
+      `http://localhost:3000/search?placeId=${placeId}&date=${date}`,
+    );
 
     const expected_response = await http.axiosRef.get(
       `http://localhost:4000/test?placeId=${placeId}&date=${date}`,
     );
 
-    expect(response.body).toEqual(expected_response.data);
+    expect(response.data).toEqual(expected_response.data);
   });
 });

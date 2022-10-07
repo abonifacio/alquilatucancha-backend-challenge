@@ -22,36 +22,55 @@ export class GetAvailabilityHandler
     @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) {}
 
-  async execute(query: GetAvailabilityQuery): Promise<ClubWithAvailability[]> {
+  async execute(query: GetAvailabilityQuery): Promise<ClubWithAvailability[]|any> {
     const keyClubCache= `${query.placeId}-${query.date}`
     const cacheData:ClubWithAvailability[]|undefined= await this.cacheManager.get(keyClubCache)
     if(cacheData?.length){
+      console.log("cache")
       return cacheData
     }
     const clubs_with_availability: ClubWithAvailability[] = [];
     const clubs = await this.alquilaTuCanchaClient.getClubs(query.placeId);
     // en este espacio se hacen varios llamados a la api y cuestan mucho tanto para el servicio como la db
-    for (const club of clubs) {
+    const newClub= await Promise.all(clubs.map(async club=>{
       const courts = await this.alquilaTuCanchaClient.getCourts(club.id);
-      const courts_with_availability: ClubWithAvailability['courts'] = [];
-      for (const court of courts) {
+      const availableCourts= await Promise.all(courts.map( async court=>{
         const slots = await this.alquilaTuCanchaClient.getAvailableSlots(
           club.id,
           court.id,
           query.date,
-        );
-        courts_with_availability.push({
-          ...court,
-          available: slots,
-        });
-      }
-      clubs_with_availability.push({
-        ...club,
-        courts: courts_with_availability,
-      });
-    }
-    await this.cacheManager.set(keyClubCache,clubs_with_availability,{ttl:100})
+          );
+          return{
+            ...court,
+            available: slots,
+          }
+        }))
+        return{
+          ...club,
+          courts:availableCourts
+        }
+      }))
+      // for (const club of clubs) {
+        //   const courts = await this.alquilaTuCanchaClient.getCourts(club.id);
+        //   const courts_with_availability: ClubWithAvailability['courts'] = [];
+    //   for (const court of courts) {
+    //     const slots = await this.alquilaTuCanchaClient.getAvailableSlots(
+    //       club.id,
+    //       court.id,
+    //       query.date,
+    //     );
+    //     courts_with_availability.push({
+    //       ...court,
+    //       available: slots,
+    //     });
+    //   }
+    //   clubs_with_availability.push({
+    //     ...club,
+    //     courts: courts_with_availability,
+    //   });
+    // }
+    await this.cacheManager.set(keyClubCache,newClub,{ttl:100})
     
-    return clubs_with_availability;
+    return newClub;
   }
 }
