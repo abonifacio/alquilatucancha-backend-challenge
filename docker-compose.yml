@@ -1,5 +1,10 @@
 version: '3.7'
 services:
+  redis:
+      image: "redis:alpine"
+      hostname: localhost
+      ports:
+        - "6379:6379"
   api:
     image: atc-challenge:dev
     build:
@@ -13,6 +18,8 @@ services:
       - 3000:3000
     environment:
       ATC_BASE_URL: http://mock:4000
+        - WAIT_HOSTS=localhost:6379
+
   mock:
     image: atc-challenge:dev
     command: node /usr/src/app/mock/server.js
