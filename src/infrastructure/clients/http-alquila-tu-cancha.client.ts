@@ -1,6 +1,7 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable } from '@nestjs/common';
+import { CACHE_MANAGER, Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Cache } from 'cache-manager';
 import * as moment from 'moment';
 
 import { Club } from '../../domain/model/club';
@@ -11,25 +12,48 @@ import { AlquilaTuCanchaClient } from '../../domain/ports/aquila-tu-cancha.clien
 @Injectable()
 export class HTTPAlquilaTuCanchaClient implements AlquilaTuCanchaClient {
   private base_url: string;
-  constructor(private httpService: HttpService, config: ConfigService) {
+  constructor(
+    private httpService: HttpService,
+    config: ConfigService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {
     this.base_url = config.get<string>('ATC_BASE_URL', 'http://localhost:4000');
   }
 
   async getClubs(placeId: string): Promise<Club[]> {
+    const redisClubs: any = await this.cacheManager.get(placeId);
+    if (redisClubs) {
+      return redisClubs;
+    }
+
     return this.httpService.axiosRef
       .get('clubs', {
         baseURL: this.base_url,
         params: { placeId },
       })
-      .then((res) => res.data);
+      .then(async (res) => {
+        await this.cacheManager.set(placeId, res.data, { ttl: 500 });
+        return res.data;
+      });
   }
 
-  getCourts(clubId: number): Promise<Court[]> {
+  async getCourts(clubId: number): Promise<Court[]> {
+    const redisCourts: any = await this.cacheManager.get(
+      JSON.stringify(clubId),
+    );
+    if (redisCourts) {
+      return redisCourts;
+    }
     return this.httpService.axiosRef
       .get(`/clubs/${clubId}/courts`, {
         baseURL: this.base_url,
       })
-      .then((res) => res.data);
+      .then(async (res) => {
+        this.cacheManager.set(JSON.stringify(clubId), res.data, {
+          ttl: 500,
+        });
+        return res.data;
+      });
   }
 
   getAvailableSlots(
