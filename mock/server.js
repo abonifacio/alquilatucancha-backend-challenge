@@ -104,11 +104,12 @@ fastify.get(
     },
   },
   async (request, reply) => {
-    const court = data.getCourt(request.params.clubId, request.params.courtId);
+    const court = [];
+    court.push(data.getCourt(request.params.clubId, request.params.courtId));
     if (!court.length) {
-      return reply.code(404).send();
+      return reply.code(404).send(); // Esto me daba siempre error porque nunca devuelve un array. Para no cambiarlo, agregue algo. No se si es correcto esto
     }
-    return omit('available')(court);
+    return omit('available')(court[0]); // No se si esta bien hacer esto
   },
 );
 
