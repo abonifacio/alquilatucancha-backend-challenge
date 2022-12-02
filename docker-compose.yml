@@ -1,7 +1,15 @@
 version: '3.7'
 services:
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - .:/data
+    environment:
+      - REDIS_URL=redis://redis:6379
   api:
-    image: atc-challenge:dev
+    image: atc-challenge:development
     build:
       dockerfile: Dockerfile
       context: .
@@ -14,7 +22,7 @@ services:
     environment:
       ATC_BASE_URL: http://mock:4000
   mock:
-    image: atc-challenge:dev
+    image: atc-challenge:development
     command: node /usr/src/app/mock/server.js
     volumes:
       - ./mock:/usr/src/app/mock
