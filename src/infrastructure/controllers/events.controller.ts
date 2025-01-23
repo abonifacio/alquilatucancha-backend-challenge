@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Inject, Post } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
 import { UseZodGuard } from 'nestjs-zod';
 import { z } from 'nestjs-zod/z';
@@ -7,6 +7,7 @@ import { ClubUpdatedEvent } from '../../domain/events/club-updated.event';
 import { CourtUpdatedEvent } from '../../domain/events/court-updated.event';
 import { SlotBookedEvent } from '../../domain/events/slot-booked.event';
 import { SlotAvailableEvent } from '../../domain/events/slot-cancelled.event';
+import { RedisService } from '../services/redis.service';
 
 const SlotSchema = z.object({
   price: z.number(),
@@ -43,11 +44,35 @@ export type ExternalEventDTO = z.infer<typeof ExternalEventSchema>;
 
 @Controller('events')
 export class EventsController {
-  constructor(private eventBus: EventBus) {}
+  constructor(
+    private eventBus: EventBus,
+    @Inject(RedisService) private redisService: RedisService,
+  ) {}
 
   @Post()
   @UseZodGuard('body', ExternalEventSchema)
   async receiveEvent(@Body() externalEvent: ExternalEventDTO) {
+    switch (externalEvent.type) {
+      case 'booking_created':
+      case 'booking_cancelled': {
+        const cacheKey = `slots:${externalEvent.clubId}:${externalEvent.courtId}:${externalEvent.slot.datetime}`;
+        await this.redisService.del(cacheKey);
+        break;
+      }
+      case 'club_updated': {
+        if (externalEvent.fields.includes('openhours')) {
+          const cacheKey = `clubs:${externalEvent.clubId}`;
+          await this.redisService.del(cacheKey);
+        }
+        break;
+      }
+      case 'court_updated': {
+        const cacheKey = `courts:${externalEvent.clubId}`;
+        await this.redisService.del(cacheKey);
+        break;
+      }
+    }
+
     switch (externalEvent.type) {
       case 'booking_created':
         this.eventBus.publish(
