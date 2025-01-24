@@ -1,5 +1,6 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, CACHE_MANAGER, Controller, Inject, Post } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { Cache } from 'cache-manager';
 import { UseZodGuard } from 'nestjs-zod';
 import { z } from 'nestjs-zod/z';
 
@@ -7,6 +8,7 @@ import { ClubUpdatedEvent } from '../../domain/events/club-updated.event';
 import { CourtUpdatedEvent } from '../../domain/events/court-updated.event';
 import { SlotBookedEvent } from '../../domain/events/slot-booked.event';
 import { SlotAvailableEvent } from '../../domain/events/slot-cancelled.event';
+import { _deleteCacheByPattern } from '../../shared/helpers/cache.helper';
 
 const SlotSchema = z.object({
   price: z.number(),
@@ -43,13 +45,21 @@ export type ExternalEventDTO = z.infer<typeof ExternalEventSchema>;
 
 @Controller('events')
 export class EventsController {
-  constructor(private eventBus: EventBus) {}
+  constructor(
+    private eventBus: EventBus,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Post()
   @UseZodGuard('body', ExternalEventSchema)
   async receiveEvent(@Body() externalEvent: ExternalEventDTO) {
     switch (externalEvent.type) {
       case 'booking_created':
+        await this._handleSlotBooking(
+          externalEvent.clubId,
+          externalEvent.courtId,
+          externalEvent.slot.datetime,
+        );
         this.eventBus.publish(
           new SlotBookedEvent(
             externalEvent.clubId,
@@ -59,6 +69,11 @@ export class EventsController {
         );
         break;
       case 'booking_cancelled':
+        await this._handleSlotAvailability(
+          externalEvent.clubId,
+          externalEvent.courtId,
+          externalEvent.slot.datetime,
+        );
         this.eventBus.publish(
           new SlotAvailableEvent(
             externalEvent.clubId,
@@ -68,11 +83,13 @@ export class EventsController {
         );
         break;
       case 'club_updated':
+        this._handleClubUpdate(externalEvent.clubId, externalEvent.fields);
         this.eventBus.publish(
           new ClubUpdatedEvent(externalEvent.clubId, externalEvent.fields),
         );
         break;
       case 'court_updated':
+        await this._handleCourtUpdate(externalEvent.courtId);
         this.eventBus.publish(
           new CourtUpdatedEvent(
             externalEvent.clubId,
@@ -82,5 +99,36 @@ export class EventsController {
         );
         break;
     }
+  }
+
+  private async _handleSlotBooking(
+    clubId: number,
+    courtId: number,
+    datetime: string,
+  ) {
+    const cacheKey = `clubId:${clubId}:courtId:${courtId}:date:${datetime}:slots`;
+    await this.cacheManager.del(cacheKey);
+  }
+
+  private async _handleSlotAvailability(
+    clubId: number,
+    courtId: number,
+    datetime: string,
+  ) {
+    const cacheKey = `clubId:${clubId}:courtId:${courtId}:date:${datetime}:slots`;
+    await this.cacheManager.del(cacheKey);
+  }
+
+  private async _handleClubUpdate(clubId: number, fields: string[]) {
+    const cacheKey = `club:${clubId}`;
+    await this.cacheManager.del(cacheKey);
+
+    if (fields.includes('openhours'))
+      await _deleteCacheByPattern(`clubId:${clubId}:*`, this.cacheManager);
+  }
+
+  private async _handleCourtUpdate(courtId: number) {
+    const cacheKey = `court:${courtId}`;
+    await this.cacheManager.del(cacheKey);
   }
 }
