@@ -43,7 +43,7 @@ export type ExternalEventDTO = z.infer<typeof ExternalEventSchema>;
 
 @Controller('events')
 export class EventsController {
-  constructor(private eventBus: EventBus) {}
+  constructor(private readonly eventBus: EventBus) {}
 
   @Post()
   @UseZodGuard('body', ExternalEventSchema)

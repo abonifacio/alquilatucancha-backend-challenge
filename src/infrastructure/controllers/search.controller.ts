@@ -7,7 +7,7 @@ import { z } from 'nestjs-zod/z';
 import {
   ClubWithAvailability,
   GetAvailabilityQuery,
-} from '../../domain/commands/get-availaiblity.query';
+} from '../../domain/commands/get-availability.query';
 
 const GetAvailabilitySchema = z.object({
   placeId: z.string(),
@@ -22,7 +22,7 @@ class GetAvailabilityDTO extends createZodDto(GetAvailabilitySchema) {}
 
 @Controller('search')
 export class SearchController {
-  constructor(private queryBus: QueryBus) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
   @Get()
   @UsePipes(ZodValidationPipe)
