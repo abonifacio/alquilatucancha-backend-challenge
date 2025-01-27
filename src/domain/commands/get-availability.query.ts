@@ -11,3 +11,7 @@ export interface ClubWithAvailability extends Club {
     available: Slot[];
   })[];
 }
+
+export interface CourtWithAvailability extends Court {
+  available: Slot[];
+}

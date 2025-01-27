@@ -1,11 +1,11 @@
 import * as moment from 'moment';
 
-import { AlquilaTuCanchaClient } from '../../domain/ports/aquila-tu-cancha.client';
-import { GetAvailabilityQuery } from '../commands/get-availaiblity.query';
-import { Club } from '../model/club';
-import { Court } from '../model/court';
-import { Slot } from '../model/slot';
-import { GetAvailabilityHandler } from './get-availability.handler';
+import { AlquilaTuCanchaClient } from '../../ports/alquila-tu-cancha.client';
+import { GetAvailabilityQuery } from '../../commands/get-availability.query';
+import { Club } from '../../model/club';
+import { Court } from '../../model/court';
+import { Slot } from '../../model/slot';
+import { GetAvailabilityHandler } from '../get-availability.handler';
 
 describe('GetAvailabilityHandler', () => {
   let handler: GetAvailabilityHandler;
