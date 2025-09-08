@@ -27,6 +27,8 @@
     "@nestjs/core": "9.0.0",
     "@nestjs/cqrs": "9.0.1",
     "@nestjs/platform-fastify": "9.0.11",
+    "circuit-breaker-js": "0.0.1",
+    "ioredis": "5.7.0",
     "moment": "2.29.4",
     "nestjs-zod": "1.2.1",
     "reflect-metadata": "0.1.13",

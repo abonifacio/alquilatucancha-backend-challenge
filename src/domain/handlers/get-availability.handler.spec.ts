@@ -1,59 +1,90 @@
-import * as moment from 'moment';
+import { Test, TestingModule } from "@nestjs/testing";
+import { GetAvailabilityHandler } from "./get-availability.handler";
+import { ALQUILA_TU_CANCHA_CLIENT } from "../ports/aquila-tu-cancha.client";
+import { AdvancedCacheService } from "../../infrastructure/services/advanced-cache.service";
+import { HTTPAlquilaTuCanchaClient } from "../../infrastructure/clients/http-alquila-tu-cancha.client";
 
-import { AlquilaTuCanchaClient } from '../../domain/ports/aquila-tu-cancha.client';
-import { GetAvailabilityQuery } from '../commands/get-availaiblity.query';
-import { Club } from '../model/club';
-import { Court } from '../model/court';
-import { Slot } from '../model/slot';
-import { GetAvailabilityHandler } from './get-availability.handler';
-
-describe('GetAvailabilityHandler', () => {
+describe("GetAvailabilityHandler", () => {
   let handler: GetAvailabilityHandler;
-  let client: FakeAlquilaTuCanchaClient;
+  let client: any;
+  let advancedCache: jest.Mocked<AdvancedCacheService>;
+  let httpClient: jest.Mocked<HTTPAlquilaTuCanchaClient>;
 
-  beforeEach(() => {
-    client = new FakeAlquilaTuCanchaClient();
-    handler = new GetAvailabilityHandler(client);
+  beforeEach(async () => {
+    const mockClient = {
+      getClubs: jest.fn(),
+      getCourts: jest.fn(),
+      getAvailableSlots: jest.fn(),
+    };
+
+    const mockAdvancedCache = {
+      getWithFallback: jest.fn(),
+      setWithIntelligentTTL: jest.fn(),
+      generateKey: jest.fn(),
+      generateStaleKey: jest.fn(),
+      invalidateByPattern: jest.fn(),
+    };
+
+    const mockHttpClient = {
+      getAvailabilityOptimized: jest.fn(),
+      getMetrics: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GetAvailabilityHandler,
+        {
+          provide: ALQUILA_TU_CANCHA_CLIENT,
+          useValue: mockClient,
+        },
+        {
+          provide: AdvancedCacheService,
+          useValue: mockAdvancedCache,
+        },
+        {
+          provide: HTTPAlquilaTuCanchaClient,
+          useValue: mockHttpClient,
+        },
+      ],
+    }).compile();
+
+    handler = module.get<GetAvailabilityHandler>(GetAvailabilityHandler);
+    client = module.get(ALQUILA_TU_CANCHA_CLIENT);
+    advancedCache = module.get(AdvancedCacheService);
+    httpClient = module.get(HTTPAlquilaTuCanchaClient);
   });
 
-  it('returns the availability', async () => {
-    client.clubs = {
-      '123': [{ id: 1 }],
-    };
-    client.courts = {
-      '1': [{ id: 1 }],
-    };
-    client.slots = {
-      '1_1_2022-12-05': [],
-    };
-    const placeId = '123';
-    const date = moment('2022-12-05').toDate();
+  it("should be defined", () => {
+    expect(handler).toBeDefined();
+  });
 
-    const response = await handler.execute(
-      new GetAvailabilityQuery(placeId, date),
-    );
+  it("should return cached availability when available", async () => {
+    const query = { placeId: "test-place", date: new Date() };
+    const cachedData = [{ id: 1, name: "Test Club", courts: [] }];
 
-    expect(response).toEqual([{ id: 1, courts: [{ id: 1, available: [] }] }]);
+    advancedCache.getWithFallback.mockResolvedValue({
+      data: cachedData,
+      isStale: false,
+    });
+
+    const result = await handler.execute(query);
+
+    expect(result).toEqual(cachedData);
+    expect(advancedCache.getWithFallback).toHaveBeenCalled();
+  });
+
+  it("should return fallback data when fetch fails", async () => {
+    const query = { placeId: "test-place", date: new Date() };
+    const fallbackData = [{ id: 1, name: "Test Club", courts: [] }];
+
+    advancedCache.getWithFallback
+      .mockResolvedValueOnce({ data: null, isStale: false }) // No cache
+      .mockResolvedValueOnce({ data: fallbackData, isStale: true }); // Fallback
+
+    httpClient.getAvailabilityOptimized.mockRejectedValue(new Error("API Error"));
+
+    const result = await handler.execute(query);
+
+    expect(result).toEqual(fallbackData);
   });
 });
-
-class FakeAlquilaTuCanchaClient implements AlquilaTuCanchaClient {
-  clubs: Record<string, Club[]> = {};
-  courts: Record<string, Court[]> = {};
-  slots: Record<string, Slot[]> = {};
-  async getClubs(placeId: string): Promise<Club[]> {
-    return this.clubs[placeId];
-  }
-  async getCourts(clubId: number): Promise<Court[]> {
-    return this.courts[String(clubId)];
-  }
-  async getAvailableSlots(
-    clubId: number,
-    courtId: number,
-    date: Date,
-  ): Promise<Slot[]> {
-    return this.slots[
-      `${clubId}_${courtId}_${moment(date).format('YYYY-MM-DD')}`
-    ];
-  }
-}
