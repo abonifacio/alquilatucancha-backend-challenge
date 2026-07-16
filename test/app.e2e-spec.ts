@@ -33,7 +33,7 @@ describe('AppController (e2e)', () => {
       .expect(200);
 
     const expected_response = await http.axiosRef.get(
-      `http://localhost:4000/test?placeId=${placeId}&date=${date}`,
+            `${process.env.ATC_BASE_URL}/test?placeId=${placeId}&date=${date}`,
     );
 
     expect(response.body).toEqual(expected_response.data);

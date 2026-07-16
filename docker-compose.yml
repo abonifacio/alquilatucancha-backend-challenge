@@ -8,11 +8,17 @@ services:
       target: development
     volumes:
       - .:/usr/src/app
+      - /usr/src/app/node_modules
     command: npm run start:dev
     ports:
       - 3000:3000
     environment:
       ATC_BASE_URL: http://mock:4000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - redis
+      - mock
   mock:
     image: atc-challenge:dev
     command: node /usr/src/app/mock/server.js
@@ -24,3 +30,7 @@ services:
       EVENT_INTERVAL_SECONDS: 10
       REQUESTS_PER_MINUTE: 60
       EVENT_PUBLISHER_URL: http://api:3000/events
+  redis:
+    image: redis:7-alpine
+    ports:
+      - 6379:6379
